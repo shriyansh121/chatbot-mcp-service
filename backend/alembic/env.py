@@ -3,9 +3,9 @@ from logging.config import fileConfig
 from sqlalchemy import create_engine, pool
 from alembic import context
 from dotenv import load_dotenv
-
-# load env
-load_dotenv(".env.dev")
+from pathlib import Path
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent  # db → app → backend → repo root
+load_dotenv(ROOT_DIR / ".env.dev")
 
 config = context.config
 fileConfig(config.config_file_name)
