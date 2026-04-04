@@ -3,7 +3,7 @@ name: Deploy to Droplet
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   deploy:
@@ -19,5 +19,5 @@ jobs:
           port: ${{ secrets.PORT }}
           script: |
             cd /root/chatbot-mcp-service
-            git pull origin main
+            git pull origin develop
             docker compose up -d --build
