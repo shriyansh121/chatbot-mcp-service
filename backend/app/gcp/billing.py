@@ -1,7 +1,7 @@
 from google.cloud.billing import budgets_v1
 from google.cloud import billing_v1
-from config.settings import settings
-from src.lib.logger import setup_logger
+from app.lib.config import settings
+from app.lib.logger import setup_logger
 
 logger = setup_logger("gcp.billing")
 

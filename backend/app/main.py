@@ -1,0 +1,107 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
+
+from app.gcp import vm, vpc, storage, gke, functions, billing, cloudsql, loadbalancer, dns
+from app.api import auth, chat
+
+app = FastAPI(title="GCP Assistant API", version="2.0.0")
+
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(chat.router)
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "gcp-assistant"}
+
+# ── VM ──────────────────────────────────────────────────────────
+@app.get("/api/vms")
+def list_vms(project_id: Optional[str] = None):
+    return vm.list_vms(project_id=project_id)
+
+@app.get("/api/vms/{name}")
+def get_vm(name: str, project_id: Optional[str] = None):
+    return vm.get_vm_details(name, project_id=project_id)
+
+# ── VPC ─────────────────────────────────────────────────────────
+@app.get("/api/networks")
+def list_networks(project_id: Optional[str] = None):
+    return vpc.list_networks(project_id=project_id)
+
+@app.get("/api/networks/{name}")
+def get_network(name: str, project_id: Optional[str] = None):
+    return vpc.get_vpc_details(name, project_id=project_id)
+
+# ── Storage ──────────────────────────────────────────────────────
+@app.get("/api/buckets")
+def list_buckets(project_id: Optional[str] = None):
+    return storage.list_buckets(project_id=project_id)
+
+@app.get("/api/buckets/{name}")
+def get_bucket(name: str):
+    return storage.get_bucket_details(name)
+
+# ── GKE ─────────────────────────────────────────────────────────
+@app.get("/api/clusters")
+def list_clusters(project_id: Optional[str] = None):
+    return gke.list_clusters(project_id=project_id)
+
+@app.get("/api/clusters/{name}")
+def get_cluster(name: str, project_id: Optional[str] = None):
+    return gke.get_cluster_details(name, project_id=project_id)
+
+# ── Cloud Functions ───────────────────────────────────────────────
+@app.get("/api/functions")
+def list_functions(project_id: Optional[str] = None):
+    return functions.list_functions(project_id=project_id)
+
+@app.get("/api/functions/{name}")
+def get_function(name: str, project_id: Optional[str] = None):
+    return functions.get_function_details(name, project_id=project_id)
+
+# ── Billing ───────────────────────────────────────────────────────
+@app.get("/api/billing")
+def get_billing(project_id: Optional[str] = None):
+    return billing.get_billing_info(project_id=project_id)
+
+@app.get("/api/billing/summary")
+def billing_summary():
+    return billing.get_billing_summary()
+
+# ── Cloud SQL ─────────────────────────────────────────────────────
+@app.get("/api/sql/instances")
+def list_sql(project_id: Optional[str] = None):
+    return cloudsql.list_instances(project_id=project_id)
+
+@app.get("/api/sql/instances/{name}")
+def get_sql(name: str, project_id: Optional[str] = None):
+    return cloudsql.get_instance_details(name, project_id=project_id)
+
+@app.get("/api/sql/instances/{name}/databases")
+def list_dbs(name: str, project_id: Optional[str] = None):
+    return cloudsql.list_databases(name, project_id=project_id)
+
+# ── Load Balancer ─────────────────────────────────────────────────
+@app.get("/api/loadbalancers")
+def list_lbs(project_id: Optional[str] = None):
+    return loadbalancer.list_load_balancers(project_id=project_id)
+
+# ── DNS ───────────────────────────────────────────────────────────
+@app.get("/api/dns/zones")
+def list_zones(project_id: Optional[str] = None):
+    return dns.list_zones(project_id=project_id)
+
+@app.get("/api/dns/zones/{name}")
+def get_zone(name: str, project_id: Optional[str] = None):
+    return dns.get_zone_details(name, project_id=project_id)
+
+@app.get("/api/dns/zones/{name}/records")
+def list_records(name: str, project_id: Optional[str] = None):
+    return dns.list_record_sets(name, project_id=project_id)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

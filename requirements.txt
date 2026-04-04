@@ -23,3 +23,7 @@ pydantic-settings
 pyyaml
 mcp
 python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+langgraph
+langchain-openai

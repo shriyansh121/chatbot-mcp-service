@@ -1,6 +1,6 @@
 from google.cloud import functions_v2
-from config.settings import settings
-from src.lib.logger import setup_logger
+from app.lib.config import settings
+from app.lib.logger import setup_logger
 
 logger = setup_logger("gcp.functions")
 
