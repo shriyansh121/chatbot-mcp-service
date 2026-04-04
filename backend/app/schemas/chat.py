@@ -32,6 +32,8 @@ class SessionResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[UUID] = None
+    edit_mode: Optional[bool] = False
+    regenerate: Optional[bool] = False
 
 class ChatResponse(BaseModel):
     message: str

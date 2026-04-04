@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session as DBSession
 from app.db.models.session_table import Session
 from app.db.models.message import Message
 from app.schemas.chat import SessionCreate, MessageCreate
@@ -8,7 +8,7 @@ from uuid import UUID
 class SessionService:
     
     @staticmethod
-    def create_session(db: Session, user_id: UUID, session_data: SessionCreate = None) -> Session:
+    def create_session(db: DBSession, user_id: UUID, session_data: SessionCreate = None) -> Session:
         db_session = Session(
             user_id=user_id,
             title=session_data.title if session_data else "New Chat"
@@ -19,21 +19,30 @@ class SessionService:
         return db_session
     
     @staticmethod
-    def get_user_sessions(db: Session, user_id: UUID, archived: bool = False) -> List[Session]:
+    def get_user_sessions(db: DBSession, user_id: UUID, archived: bool = False) -> List[Session]:
         return db.query(Session).filter(
             Session.user_id == user_id,
             Session.is_archived == archived
         ).order_by(Session.updated_at.desc()).all()
     
     @staticmethod
-    def get_session_by_id(db: Session, session_id: UUID, user_id: UUID) -> Optional[Session]:
+    def get_session_by_id(db: DBSession, session_id: UUID, user_id: UUID) -> Optional[Session]:
         return db.query(Session).filter(
             Session.id == session_id,
             Session.user_id == user_id
         ).first()
     
     @staticmethod
-    def archive_session(db: Session, session_id: UUID, user_id: UUID) -> bool:
+    def rename_session(db: DBSession, session_id: UUID, user_id: UUID, new_title: str) -> bool:
+        db_session = SessionService.get_session_by_id(db, session_id, user_id)
+        if db_session:
+            db_session.title = new_title
+            db.commit()
+            return True
+        return False
+    
+    @staticmethod
+    def archive_session(db: DBSession, session_id: UUID, user_id: UUID) -> bool:
         db_session = SessionService.get_session_by_id(db, session_id, user_id)
         if db_session:
             db_session.is_archived = True
@@ -42,16 +51,18 @@ class SessionService:
         return False
     
     @staticmethod
-    def delete_session(db: Session, session_id: UUID, user_id: UUID) -> bool:
+    def delete_session(db: DBSession, session_id: UUID, user_id: UUID) -> bool:
         db_session = SessionService.get_session_by_id(db, session_id, user_id)
         if db_session:
+            # Delete all messages for this session first
+            db.query(Message).filter(Message.session_id == session_id).delete()
             db.delete(db_session)
             db.commit()
             return True
         return False
     
     @staticmethod
-    def add_message(db: Session, session_id: UUID, message_data: MessageCreate, role: str = "user") -> Message:
+    def add_message(db: DBSession, session_id: UUID, message_data: MessageCreate, role: str = "user") -> Message:
         db_message = Message(
             session_id=session_id,
             role=role,
@@ -70,7 +81,7 @@ class SessionService:
         return db_message
     
     @staticmethod
-    def get_session_messages(db: Session, session_id: UUID, user_id: UUID) -> List[Message]:
+    def get_session_messages(db: DBSession, session_id: UUID, user_id: UUID) -> List[Message]:
         # Verify session belongs to user
         session = SessionService.get_session_by_id(db, session_id, user_id)
         if not session:

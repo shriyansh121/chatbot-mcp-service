@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+from pydantic import BaseModel
 from app.db.session import SessionLocal
 from app.services.chat_service import ChatService
 from app.services.session_service import SessionService
@@ -19,6 +20,9 @@ def get_db():
         db.close()
 
 chat_service = ChatService()
+
+class RenameRequest(BaseModel):
+    title: str
 
 @router.post("/message", response_model=ChatResponse)
 async def send_message(
@@ -59,6 +63,18 @@ async def create_session(
 ):
     session = SessionService.create_session(db, current_user.id)
     return SessionResponse.from_orm(session)
+
+@router.put("/sessions/{session_id}/rename")
+async def rename_session(
+    session_id: UUID,
+    request: RenameRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    success = SessionService.rename_session(db, session_id, current_user.id, request.title)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Session renamed successfully", "title": request.title}
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(
