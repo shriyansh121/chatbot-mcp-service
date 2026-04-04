@@ -1,5 +1,8 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from typing import Optional
 
 from app.gcp import vm, vpc, storage, gke, functions, billing, cloudsql, loadbalancer, dns
@@ -12,6 +15,24 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # Include routers
 app.include_router(auth.router)
 app.include_router(chat.router)
+
+# Mount static frontend files
+frontend_dir = os.path.join(os.path.dirname(__file__), "../../frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+    @app.get("/{full_path:path}")
+    async def catch_all(full_path: str):
+        # Serve from frontend directory if exists
+        file_path = os.path.join(frontend_dir, full_path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        # Otherwise return index for health check or routing
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 @app.get("/health")
 def health():
