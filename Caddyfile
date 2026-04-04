@@ -1,0 +1,4 @@
+nexusaix.me, www.nexusaix.me {
+    reverse_proxy app:8000
+    encode gzip
+}
