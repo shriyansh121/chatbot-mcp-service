@@ -7,6 +7,7 @@ services:
       - .env.dev
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/vertex-ai.json
     restart: always
     volumes:
       - .:/app
