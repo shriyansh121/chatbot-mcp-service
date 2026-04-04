@@ -83,7 +83,11 @@ def invalidate_quick_cache():
     return {"status": "ok", "message": "All quick action caches invalidated"}
 
 
-# Mount static frontend files
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "gcp-assistant"}
+
+# Mount static frontend files (MUST be last — catch-all route)
 frontend_dir = os.path.join(os.path.dirname(__file__), "../../frontend")
 if os.path.exists(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
@@ -94,16 +98,13 @@ if os.path.exists(frontend_dir):
 
     @app.get("/{full_path:path}")
     async def catch_all(full_path: str):
-        # Serve from frontend directory if exists
+        # Never intercept API or health routes
+        if full_path.startswith("api/") or full_path == "health":
+            return {"detail": "Not found"}
         file_path = os.path.join(frontend_dir, full_path)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return FileResponse(file_path)
-        # Otherwise return index for health check or routing
         return FileResponse(os.path.join(frontend_dir, "index.html"))
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": "gcp-assistant"}
 
 # ── VM ──────────────────────────────────────────────────────────
 @app.get("/api/vms")
