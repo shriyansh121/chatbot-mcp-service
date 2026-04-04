@@ -5,11 +5,24 @@ services:
       - "8000"
     env_file:
       - .env.dev
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     restart: always
     volumes:
       - .:/app
     working_dir: /app/backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
 
   caddy:
     image: caddy:latest
@@ -27,3 +40,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:

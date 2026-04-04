@@ -1,7 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    NexusAI — Frontend Application Logic
-   Connects to FastAPI backend at /api/auth/* and /api/chat/*
-   Features: chat, streaming, edit prompt, regenerate, rename/delete sessions
+   Connects to FastAPI backend with real-time streaming (SSE)
    ═══════════════════════════════════════════════════════════════ */
 
 const API_BASE = window.location.origin;
@@ -27,8 +26,6 @@ const signupForm    = $('#signup-form');
 const tabLogin      = $('#tab-login');
 const tabSignup     = $('#tab-signup');
 const tabIndicator  = $('#tab-indicator');
-const loginError    = $('#login-error');
-const signupError   = $('#signup-error');
 const chatMessages  = $('#chat-messages');
 const chatInput     = $('#chat-input');
 const btnSend       = $('#btn-send');
@@ -42,42 +39,22 @@ const sidebar       = $('#sidebar');
 const sidebarToggle = $('#sidebar-toggle');
 
 // ═══════════════════════════════════════════════════════════════
-//  ROUTING
+//  ROUTING & INIT
 // ═══════════════════════════════════════════════════════════════
 function navigate(page) {
-    authPage.classList.remove('active');
-    chatPage.classList.remove('active');
-    if (page === 'auth') {
-        authPage.classList.add('active');
-    } else {
-        chatPage.classList.add('active');
-        updateUserUI();
-        loadSessions();
-    }
+    authPage.classList.remove('active'); chatPage.classList.remove('active');
+    if (page === 'auth') { authPage.classList.add('active'); }
+    else { chatPage.classList.add('active'); updateUserUI(); loadSessions(); }
 }
 
-function init() {
-    if (state.token && state.user) {
-        navigate('chat');
-    } else {
-        navigate('auth');
-    }
-}
+function init() { if (state.token && state.user) { navigate('chat'); } else { navigate('auth'); } }
 
-// ── API Helper ──────────────────────────────────────────────────
+// ── API Helper (Non-streaming) ──────────────────────────────────
 async function api(path, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
-
-    const res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers: { ...headers, ...options.headers },
-    });
-
-    if (res.status === 401) {
-        logout();
-        throw new Error('Session expired.');
-    }
+    const res = await fetch(`${API_BASE}${path}`, { ...options, headers: { ...headers, ...options.headers } });
+    if (res.status === 401) { logout(); throw new Error('Session expired'); }
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Generic error');
     return data;
@@ -88,59 +65,37 @@ async function api(path, options = {}) {
 // ═══════════════════════════════════════════════════════════════
 tabLogin.addEventListener('click', () => switchTab('login'));
 tabSignup.addEventListener('click', () => switchTab('signup'));
-
 function switchTab(tab) {
     tabLogin.classList.toggle('active', tab === 'login');
     tabSignup.classList.toggle('active', tab === 'signup');
     tabIndicator.classList.toggle('right', tab === 'signup');
     loginForm.classList.toggle('active', tab === 'login');
     signupForm.classList.toggle('active', tab === 'signup');
-    loginError.textContent = ''; signupError.textContent = '';
 }
-
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = $('#btn-login'); setLoading(btn, true);
     try {
-        const data = await api('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email: $('#login-email').value, password: $('#login-password').value }),
-        });
+        const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: $('#login-email').value, password: $('#login-password').value }) });
         state.token = data.access_token; state.user = data.user;
-        localStorage.setItem('nexus_token', data.access_token);
-        localStorage.setItem('nexus_user', JSON.stringify(data.user));
+        localStorage.setItem('nexus_token', state.token); localStorage.setItem('nexus_user', JSON.stringify(state.user));
         navigate('chat');
-    } catch (err) { loginError.textContent = err.message; }
-    finally { setLoading(btn, false); }
+    } catch (err) { alert(err.message); }
 });
-
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = $('#btn-signup'); setLoading(btn, true);
     try {
-        const data = await api('/api/auth/signup', {
-            method: 'POST',
-            body: JSON.stringify({ email: $('#signup-email').value, password: $('#signup-password').value, full_name: $('#signup-name').value || null }),
-        });
+        const data = await api('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email: $('#signup-email').value, password: $('#signup-password').value, full_name: $('#signup-name').value || null })});
         state.token = data.access_token; state.user = data.user;
-        localStorage.setItem('nexus_token', data.access_token);
-        localStorage.setItem('nexus_user', JSON.stringify(data.user));
+        localStorage.setItem('nexus_token', state.token); localStorage.setItem('nexus_user', JSON.stringify(state.user));
         navigate('chat');
-    } catch (err) { signupError.textContent = err.message; }
-    finally { setLoading(btn, false); }
+    } catch (err) { alert(err.message); }
 });
-
-function logout() {
-    state.token = null; state.user = null; state.currentSessionId = null;
-    localStorage.removeItem('nexus_token'); localStorage.removeItem('nexus_user');
-    navigate('auth');
-}
+function logout() { localStorage.clear(); location.reload(); }
 btnLogout.addEventListener('click', logout);
-
 function updateUserUI() {
     if (state.user) {
-        const name = state.user.full_name || state.user.email;
-        userName.textContent = name; userAvatar.textContent = (name[0] || 'U').toUpperCase();
+        const n = state.user.full_name || state.user.email;
+        userName.textContent = n; userAvatar.textContent = (n[0] || 'U').toUpperCase();
     }
 }
 
@@ -149,133 +104,90 @@ function updateUserUI() {
 // ═══════════════════════════════════════════════════════════════
 async function loadSessions() {
     try {
-        const sessions = await api('/api/chat/sessions');
-        state.sessions = sessions;
+        state.sessions = await api('/api/chat/sessions');
         renderSessions();
-    } catch (err) { console.error('Sessions pull failed:', err); }
+    } catch (err) { console.error('Sessions err:', err); }
 }
-
 function renderSessions() {
     sessionList.innerHTML = '';
     state.sessions.forEach((s) => {
-        const el = document.createElement('div');
-        el.className = `session-item ${s.id === state.currentSessionId ? 'active' : ''}`;
+        const el = document.createElement('div'); el.className = `session-item ${s.id === state.currentSessionId ? 'active' : ''}`;
         el.innerHTML = `
-            <span class="session-title">${escapeHTML(s.title || 'New Conversation')}</span>
+            <span class="session-title">${escapeHTML(s.title || 'New Chat')}</span>
             <span class="session-actions">
-                <button class="session-action-btn rename" title="Rename"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg></button>
-                <button class="session-action-btn delete" title="Delete"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></button>
+                <button class="session-action-btn rename"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg></button>
+                <button class="session-action-btn delete"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg></button>
             </span>
         `;
-        el.querySelector('.session-title').addEventListener('click', () => loadSession(s.id));
-        el.querySelector('.rename').addEventListener('click', (e) => { e.stopPropagation(); startRenameSession(el, s); });
-        el.querySelector('.delete').addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteSession(s.id); });
+        el.querySelector('.session-title').onclick = () => loadSession(s.id);
+        el.querySelector('.rename').onclick = (e) => { e.stopPropagation(); startRename(el, s); };
+        el.querySelector('.delete').onclick = (e) => { e.stopPropagation(); confirmDelete(s.id); };
         sessionList.appendChild(el);
     });
 }
-
-function startRenameSession(el, session) {
-    const titleSpan = el.querySelector('.session-title');
-    const input = document.createElement('input');
-    input.type = 'text'; input.className = 'session-rename-input'; input.value = session.title || 'New Conversation';
-    titleSpan.replaceWith(input); input.focus(); input.select();
-    const finish = async () => {
-        const nt = input.value.trim() || session.title;
-        try {
-            await api(`/api/chat/sessions/${session.id}/rename`, { method: 'PUT', body: JSON.stringify({ title: nt }) });
-            session.title = nt;
-        } catch (err) { console.error('Rename err:', err); }
+function startRename(el, s) {
+    const orig = el.querySelector('.session-title');
+    const input = document.createElement('input'); input.className = 'session-rename-input'; input.value = s.title;
+    orig.replaceWith(input); input.focus();
+    input.onblur = async () => {
+        const nt = input.value.trim() || s.title;
+        try { await api(`/api/chat/sessions/${s.id}/rename`, { method: 'PUT', body: JSON.stringify({ title: nt })}); s.title = nt; } catch {}
         loadSessions();
     };
-    input.addEventListener('blur', finish);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+    input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); };
 }
-
-function confirmDeleteSession(sessionId) {
-    const overlay = document.createElement('div'); el.className = 'modal-overlay';
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-        <div class="modal-card">
-            <h3>Delete conversation?</h3><p>This will permanently remove this chat.</p>
-            <div class="modal-buttons">
-                <button class="modal-btn-cancel">Cancel</button><button class="modal-btn-delete">Delete</button>
-            </div>
-        </div>
-    `;
-    overlay.querySelector('.modal-btn-cancel').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('.modal-btn-delete').addEventListener('click', async () => {
-        try {
-            await api(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
-            if (state.currentSessionId === sessionId) { state.currentSessionId = null; clearMessages(); welcomeScreen.style.display = 'flex'; }
-            loadSessions();
-        } catch (err) { console.error('Del err:', err); }
-        overlay.remove();
-    });
-    document.body.appendChild(overlay);
+function confirmDelete(id) {
+    if (confirm('Delete this conversation?')) {
+        api(`/api/chat/sessions/${id}`, { method: 'DELETE' })
+            .then(() => { if (state.currentSessionId === id) { state.currentSessionId = null; clearChat(); } loadSessions(); });
+    }
 }
-
-async function loadSession(sessionId) {
-    try {
-        state.currentSessionId = sessionId; renderSessions();
-        const session = await api(`/api/chat/sessions/${sessionId}`);
-        clearMessages(); state.currentMessages = [];
-        if (session.messages?.length) {
-            welcomeScreen.style.display = 'none';
-            session.messages.forEach((m) => {
-                state.currentMessages.push({ role: m.role, content: m.content });
-                appendMessage(m.role, m.content);
-            });
-        } else { welcomeScreen.style.display = 'flex'; }
-        scrollToBottom();
-    } catch (err) { console.error('Load session err:', err); }
+async function loadSession(id) {
+    state.currentSessionId = id; renderSessions();
+    const s = await api(`/api/chat/sessions/${id}`);
+    clearChat(); state.currentMessages = [];
+    if (s.messages?.length) {
+        welcomeScreen.style.display = 'none';
+        s.messages.forEach(m => { state.currentMessages.push(m); appendMessage(m.role, m.content); });
+    } else { welcomeScreen.style.display = 'flex'; }
+    scrollToBottom();
 }
-
-async function createNewSession() {
-    try {
-        const session = await api('/api/chat/sessions', { method: 'POST' });
-        state.currentSessionId = session.id; loadSessions(); clearMessages(); welcomeScreen.style.display = 'flex';
-    } catch (err) { console.error('Create session err:', err); }
-}
-btnNewChat.addEventListener('click', createNewSession);
+btnNewChat.onclick = async () => {
+    const s = await api('/api/chat/sessions', { method: 'POST' });
+    state.currentSessionId = s.id; loadSessions(); clearChat(); welcomeScreen.style.display = 'flex';
+};
 
 // ═══════════════════════════════════════════════════════════════
 //  CHAT & STREAMING
 // ═══════════════════════════════════════════════════════════════
-chatInput.addEventListener('input', () => {
-    btnSend.disabled = !chatInput.value.trim();
-    chatInput.style.height = 'auto'; chatInput.style.height = Math.min(chatInput.scrollHeight, 150) + 'px';
-});
+function clearChat() { chatMessages.querySelectorAll('.message').forEach(m => m.remove()); welcomeScreen.style.display = 'flex'; }
 
-chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (chatInput.value.trim()) sendMessage(); } });
-btnSend.addEventListener('click', () => { if (chatInput.value.trim()) sendMessage(); });
+btnSend.onclick = () => sendMessage();
+chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
 async function sendMessage(overrideText = null) {
     const text = overrideText || chatInput.value.trim();
     if (!text || state.isLoading) return;
 
     state.isLoading = true; welcomeScreen.style.display = 'none';
-    if (!overrideText) { chatInput.value = ''; chatInput.style.height = 'auto'; }
-    btnSend.disabled = true;
-
-    appendMessage('user', text); state.currentMessages.push({ role: 'user', content: text });
+    if (!overrideText) chatInput.value = '';
+    
+    appendMessage('user', text);
+    state.currentMessages.push({ role: 'user', content: text });
     scrollToBottom();
 
-    // ── Pre-create Assistant Bubble for Streaming ──────────────
-    const assistantMsgEl = createMessageElement('assistant', '');
-    chatMessages.appendChild(assistantMsgEl);
-    const contentDiv = assistantMsgEl.querySelector('.message-text');
-    const thinkingEl = showThinkingInline(assistantMsgEl);
-    scrollToBottom();
-
-    let fullContent = "";
+    // Setup assistant bubble
+    const msgEl = appendMessage('assistant', '');
+    const contentDiv = msgEl.querySelector('.message-text');
+    const thinking = showThinking(contentDiv);
+    
+    let full = "";
     try {
         const response = await fetch(`${API_BASE}/api/chat/message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
             body: JSON.stringify({ message: text, session_id: state.currentSessionId })
         });
-
-        if (!response.ok) throw new Error("Stream failed");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -284,156 +196,108 @@ async function sendMessage(overrideText = null) {
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-
             buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n\n");
-            buffer = lines.pop(); // Keep incomplete line in buffer
+            
+            const chunks = buffer.split('\n\n');
+            buffer = chunks.pop();
 
-            for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                    const jsonStr = line.replace("data: ", "").trim();
+            for (const chunk of chunks) {
+                const line = chunk.trim();
+                // Fix: Robust data picking
+                if (line.startsWith('data: ')) {
+                    const jsonStr = line.substring(6).trim();
                     if (!jsonStr) continue;
                     try {
                         const data = JSON.parse(jsonStr);
-                        if (data.type === "token") {
-                            if (thinkingEl) { thinkingEl.remove(); }
-                            fullContent += data.content;
-                            contentDiv.innerHTML = formatMessage(fullContent);
+                        if (data.type === 'token') {
+                            if (thinking) thinking.remove();
+                            full += data.content;
+                            contentDiv.innerHTML = formatMessage(full);
                             scrollToBottom();
+                        } else if (data.type === 'done') {
+                            loadSessions(); // update titles
                         }
-                        if (data.type === "done") {
-                             loadSessions(); // Update titles
-                        }
-                    } catch (e) { console.error("JSON parse err in stream:", e); }
+                    } catch (e) { console.warn('Stream parse err:', line); }
                 }
             }
         }
-        state.currentMessages.push({ role: 'assistant', content: fullContent });
+        state.currentMessages.push({ role: 'assistant', content: full });
     } catch (err) {
-        if (thinkingEl) thinkingEl.remove();
-        contentDiv.innerHTML = `<span style="color:#ef4444">⚠️ Error: ${err.message}</span>`;
+        contentDiv.innerHTML = `<span style="color:#ef4444">Error: ${err.message}</span>`;
     } finally {
-        state.isLoading = false; btnSend.disabled = false; scrollToBottom();
+        state.isLoading = false; scrollToBottom();
     }
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  EDIT & REGENERATE
+//  RENDERING UTILS
 // ═══════════════════════════════════════════════════════════════
-function startEditMessage(msgEl, originalText, msgIndex) {
-    const textDiv = msgEl.querySelector('.message-text');
-    const actionsDiv = msgEl.querySelector('.message-actions');
-    if (actionsDiv) actionsDiv.style.display = 'none';
-    const oldHTML = textDiv.innerHTML; textDiv.innerHTML = '';
-
-    const textarea = document.createElement('textarea'); textarea.className = 'edit-area'; textarea.value = originalText;
-    textDiv.appendChild(textarea);
-    const btnRow = document.createElement('div'); btnRow.className = 'edit-buttons';
-    btnRow.innerHTML = `<button class="edit-btn-cancel">Cancel</button><button class="edit-btn-save">Save & Send</button>`;
-    textDiv.appendChild(btnRow); textarea.focus();
-
-    btnRow.querySelector('.edit-btn-cancel').addEventListener('click', () => { textDiv.innerHTML = oldHTML; if (actionsDiv) actionsDiv.style.display = ''; });
-    btnRow.querySelector('.edit-btn-save').addEventListener('click', async () => {
-        const nt = textarea.value.trim(); if (!nt) return;
-        removeMessagesAfterIndex(msgIndex); state.currentMessages.splice(msgIndex);
-        sendMessage(nt);
-    });
-}
-
-function removeMessagesAfterIndex(idx) {
-    const all = Array.from(chatMessages.children).filter(c => c !== welcomeScreen && c.classList.contains('message'));
-    for (let i = all.length - 1; i >= idx; i--) all[i].remove();
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  RENDERING & MARKDOWN
-// ═══════════════════════════════════════════════════════════════
-function createMessageElement(role, content) {
+function appendMessage(role, content) {
     const el = document.createElement('div'); el.className = `message ${role}`;
     const avatar = role === 'user' ? (state.user?.email?.[0] || 'U').toUpperCase() : 'N';
     const actions = role === 'user' 
-        ? `<div class="message-actions"><button class="msg-action-btn edit-btn" title="Edit"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>Edit</button></div>`
-        : `<div class="message-actions"><button class="msg-action-btn regenerate-btn" title="Regenerate"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>Regenerate</button></div>`;
+        ? `<button class="msg-action-btn edit-msg">Edit</button>` 
+        : `<button class="msg-action-btn regen-msg">Regenerate</button>`;
 
     el.innerHTML = `
         <div class="message-avatar">${avatar}</div>
         <div class="message-content">
             <div class="message-role">${role === 'user' ? 'You' : 'NexusAI'}</div>
             <div class="message-text">${formatMessage(content)}</div>
-            ${actions}
+            <div class="message-actions">${actions}</div>
         </div>
     `;
 
     if (role === 'user') {
-        el.querySelector('.edit-btn').addEventListener('click', () => {
-            const all = Array.from(chatMessages.children).filter(c => c !== welcomeScreen && c.classList.contains('message'));
-            startEditMessage(el, content, all.indexOf(el));
-        });
+        el.querySelector('.edit-msg').onclick = () => startEdit(el, content);
     } else {
-        el.querySelector('.regenerate-btn').addEventListener('click', () => {
-            const all = Array.from(chatMessages.children).filter(c => c !== welcomeScreen && c.classList.contains('message'));
-            const idx = all.indexOf(el);
-            const userMsg = state.currentMessages[idx-1];
-            if (userMsg) { removeMessagesAfterIndex(idx-1); state.currentMessages.splice(idx-1); sendMessage(userMsg.content); }
-        });
+        el.querySelector('.regen-msg').onclick = () => regenerate(el);
     }
+
+    chatMessages.appendChild(el);
     return el;
 }
 
-function appendMessage(role, content) {
-    chatMessages.appendChild(createMessageElement(role, content));
+function startEdit(el, content) {
+    const textDiv = el.querySelector('.message-text');
+    const old = textDiv.innerHTML;
+    textDiv.innerHTML = `<textarea class="edit-area">${content}</textarea><div class="edit-buttons"><button class="save">Save</button><button class="cancel">Cancel</button></div>`;
+    textDiv.querySelector('.cancel').onclick = () => textDiv.innerHTML = old;
+    textDiv.querySelector('.save').onclick = () => {
+        const nt = textDiv.querySelector('textarea').value.trim();
+        if (nt) { removeTrailing(el); sendMessage(nt); }
+    };
 }
 
-function formatMessage(text) {
-    if (!text) return "";
-    let h = escapeHTML(text);
+function regenerate(el) {
+    const idx = Array.from(chatMessages.children).indexOf(el) - 1; // get index of user message before this bubble
+    const userMsgEl = chatMessages.children[idx]; // the user message
+    if (userMsgEl && userMsgEl.classList.contains('user')) {
+        const text = state.currentMessages[idx - 1]?.content; // Note: currentMessages is 1-indexed for some reason in my logic, let's just use the DOM text
+        // Actually, let's just find the last user message
+        const userMsgText = state.currentMessages.filter(m => m.role === 'user').pop()?.content;
+        removeTrailing(userMsgEl); // Remove the user message and everything after
+        sendMessage(userMsgText);
+    }
+}
 
-    // Headers: ### something
+function removeTrailing(el) {
+    while (el.nextSibling) el.nextSibling.remove();
+    el.remove();
+}
+
+function formatMessage(t) {
+    if (!t) return "";
+    let h = escapeHTML(t);
     h = h.replace(/^### (.*$)/gm, '<h3 class="md-h3">$1</h3>');
-
-    // Code blocks
-    h = h.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
+    h = h.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => `<pre><code>${c.trim()}</code></pre>`);
     h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
     h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-    // Tables
-    h = h.replace(/((?:^\|.+\|$\n?)+)/gm, (block) => {
-        const lines = block.trim().split('\n').filter(l => l.trim());
-        if (lines.length < 2) return block;
-        const parse = (l) => l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
-        const header = parse(lines[0]);
-        let out = '<table><thead><tr>' + header.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
-        lines.slice(2).forEach(line => { out += '<tr>' + parse(line).map(c => `<td>${c}</td>`).join('') + '</tr>'; });
-        return out + '</tbody></table>';
-    });
-
-    // Lists
-    const lines = h.split('\n'); let res = []; let inL = false;
-    for (const l of lines) {
-        const m = l.match(/^(\s*)[-*]\s+(.+)/);
-        if (m) { if (!inL) { res.push('<ul>'); inL = true; } res.push(`<li>${m[2]}</li>`); }
-        else { if (inL) { res.push('</ul>'); inL = false; } res.push(l); }
-    }
-    if (inL) res.push('</ul>');
-    return res.join('\n').replace(/\n/g, '<br>');
+    return h.replace(/\n/g, '<br>');
 }
-
 function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function clearMessages() { Array.from(chatMessages.children).forEach(c => { if (c !== welcomeScreen) c.remove(); }); }
+function showThinking(div) { const t = document.createElement('div'); t.className = 'inline-thinking'; t.innerHTML = '<span>.</span><span>.</span><span>.</span>'; div.appendChild(t); return t; }
+function scrollToBottom() { chatMessages.scrollTop = chatMessages.scrollHeight; }
 
-function showThinkingInline(parent) {
-    const el = document.createElement('div'); el.className = 'inline-thinking';
-    el.innerHTML = `<div class="thinking-dot"></div><div class="thinking-dot"></div><div class="thinking-dot"></div>`;
-    parent.querySelector('.message-text').appendChild(el);
-    return el;
-}
-
-function scrollToBottom() { requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }); }
-function setLoading(b, l) {
-    const t = b.querySelector('.btn-text'); const s = b.querySelector('.btn-spinner');
-    if (l) { b.disabled = true; t.style.opacity = '0'; s.hidden = false; }
-    else { b.disabled = false; t.style.opacity = '1'; s.hidden = true; }
-}
-
-sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+sidebarToggle.onclick = () => sidebar.classList.toggle('open');
 init();

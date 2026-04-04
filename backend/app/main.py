@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,14 +8,74 @@ from typing import Optional
 
 from app.gcp import vm, vpc, storage, gke, functions, billing, cloudsql, loadbalancer, dns
 from app.api import auth, chat
+from app.services.cache_service import (
+    preload_quick_action_cache,
+    get_cached_vms,
+    get_cached_networks,
+    get_cached_buckets,
+    get_cached_billing,
+    cache_invalidate_all
+)
+from app.lib_helper.config import settings
 
-app = FastAPI(title="GCP Assistant API", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown lifecycle: preload caches on startup."""
+    # Startup: preload quick action caches for fast responses
+    await preload_quick_action_cache(project_id=settings.PROJECT_ID)
+    yield
+    # Shutdown: cleanup if needed
+    pass
+
+
+app = FastAPI(title="GCP Assistant API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Include routers
 app.include_router(auth.router)
 app.include_router(chat.router)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CACHED QUICK ACTION ENDPOINTS (Fast responses for the 4 main queries)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/quick/vms")
+def quick_list_vms(project_id: Optional[str] = None):
+    """List VMs with caching for fast response."""
+    result = get_cached_vms(project_id)
+    return {"data": result["data"], "cached": result["cached"]}
+
+
+@app.get("/api/quick/networks")
+def quick_list_networks(project_id: Optional[str] = None):
+    """List VPC networks with caching for fast response."""
+    result = get_cached_networks(project_id)
+    return {"data": result["data"], "cached": result["cached"]}
+
+
+@app.get("/api/quick/buckets")
+def quick_list_buckets(project_id: Optional[str] = None):
+    """List storage buckets with caching for fast response."""
+    result = get_cached_buckets(project_id)
+    return {"data": result["data"], "cached": result["cached"]}
+
+
+@app.get("/api/quick/billing")
+def quick_billing_summary(project_id: Optional[str] = None):
+    """Get billing summary with caching for fast response."""
+    result = get_cached_billing(project_id)
+    return {"data": result["data"], "cached": result["cached"]}
+
+
+@app.post("/api/quick/invalidate")
+def invalidate_quick_cache():
+    """Invalidate all quick action caches (force refresh on next request)."""
+    cache_invalidate_all()
+    return {"status": "ok", "message": "All quick action caches invalidated"}
+
 
 # Mount static frontend files
 frontend_dir = os.path.join(os.path.dirname(__file__), "../../frontend")

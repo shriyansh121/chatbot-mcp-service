@@ -25,3 +25,4 @@ mcp
 passlib[bcrypt]
 python-jose[cryptography]
 langgraph
+redis
