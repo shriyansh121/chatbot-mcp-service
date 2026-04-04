@@ -61,20 +61,20 @@ def get_vpc_details(network_name: str, project_id: str = None):
         logger.error(f"Error getting VPC details for {network_name}: {e}")
         return {"error": str(e)}
 
-import json
-print("=" * 60)
-print("Listing all VPCs using vertex-ai.json credentials...")
-print("=" * 60)
-all_vms = list_networks()
-if all_vms:
-    print(json.dumps(all_vms, indent=2))
-    print(f"\nTotal VPCs found: {len(all_vms)}")
-    # Example: get details of the first VM
-    first = all_vms[1]
-    print(f"\n{'=' * 60}")
-    print(f"Getting details for: ",first['name'])
-    print(f"{'=' * 60}")
-    details = get_vpc_details(network_name="gcp-network", project_id="devops-internal-439011")
-    print(json.dumps(details, indent=2))
-else:
-    print("No VMs found (or auth failed — check logs).")
+# import json
+# print("=" * 60)
+# print("Listing all VPCs using vertex-ai.json credentials...")
+# print("=" * 60)
+# all_vms = list_networks()
+# if all_vms:
+#     print(json.dumps(all_vms, indent=2))
+#     print(f"\nTotal VPCs found: {len(all_vms)}")
+#     # Example: get details of the first VM
+#     first = all_vms[1]
+#     print(f"\n{'=' * 60}")
+#     print(f"Getting details for: ",first['name'])
+#     print(f"{'=' * 60}")
+#     details = get_vpc_details(network_name="gcp-network", project_id="devops-internal-439011")
+#     print(json.dumps(details, indent=2))
+# else:
+#     print("No VMs found (or auth failed — check logs).")
