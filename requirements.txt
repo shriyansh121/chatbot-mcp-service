@@ -26,4 +26,4 @@ python-dotenv
 passlib[bcrypt]
 python-jose[cryptography]
 langgraph
-langchain-openai
+langchain-openailangchain-core

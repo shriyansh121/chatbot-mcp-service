@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="NexusAI — Your intelligent GCP cloud assistant. Manage VMs, VPCs, Storage, and more through natural conversation." />
+    <title>NexusAI — Cloud Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  AUTH PAGE                                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="auth-page" class="page active">
+        <!-- Animated background -->
+        <div class="auth-bg">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+            <div class="grid-overlay"></div>
+        </div>
+
+        <div class="auth-container">
+            <!-- Left — Branding -->
+            <div class="auth-brand">
+                <div class="brand-content">
+                    <div class="brand-icon">
+                        <svg viewBox="0 0 48 48" fill="none">
+                            <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" stroke="url(#g1)" stroke-width="2" fill="url(#g1)" fill-opacity="0.1"/>
+                            <path d="M24 16L34 22V32L24 38L14 32V22L24 16Z" stroke="url(#g1)" stroke-width="2" fill="url(#g1)" fill-opacity="0.2"/>
+                            <circle cx="24" cy="26" r="4" fill="url(#g1)"/>
+                            <defs><linearGradient id="g1" x1="6" y1="4" x2="42" y2="44"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+                        </svg>
+                    </div>
+                    <h1 class="brand-name">NexusAI</h1>
+                    <p class="brand-tagline">Cloud Intelligence Platform</p>
+                    <div class="brand-features">
+                        <div class="feature-item">
+                            <span class="feature-dot"></span>
+                            <span>Natural language GCP queries</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-dot"></span>
+                            <span>Real-time infrastructure insights</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-dot"></span>
+                            <span>Multi-service cloud management</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right — Form -->
+            <div class="auth-form-section">
+                <div class="auth-card">
+                    <!-- Tab Toggle -->
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" data-tab="login" id="tab-login">Sign In</button>
+                        <button class="auth-tab" data-tab="signup" id="tab-signup">Sign Up</button>
+                        <div class="tab-indicator" id="tab-indicator"></div>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form id="login-form" class="auth-form active">
+                        <p class="form-subtitle">Welcome back, Commander</p>
+                        <div class="input-group">
+                            <label for="login-email">Email Address</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+                                <input type="email" id="login-email" placeholder="you@company.com" required autocomplete="email" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="login-password">Password</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                                <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-login">
+                            <span class="btn-text">Sign In</span>
+                            <div class="btn-spinner" hidden></div>
+                        </button>
+                        <div class="auth-error" id="login-error"></div>
+                    </form>
+
+                    <!-- Signup Form -->
+                    <form id="signup-form" class="auth-form">
+                        <p class="form-subtitle">Create your account</p>
+                        <div class="input-group">
+                            <label for="signup-name">Full Name</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                                <input type="text" id="signup-name" placeholder="John Doe" autocomplete="name" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="signup-email">Email Address</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+                                <input type="email" id="signup-email" placeholder="you@company.com" required autocomplete="email" />
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="signup-password">Password</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                                <input type="password" id="signup-password" placeholder="Min. 6 characters" required minlength="6" autocomplete="new-password" />
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-signup">
+                            <span class="btn-text">Create Account</span>
+                            <div class="btn-spinner" hidden></div>
+                        </button>
+                        <div class="auth-error" id="signup-error"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  CHAT PAGE                                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="chat-page" class="page">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L30 10V22L16 30L2 22V10L16 2Z" stroke="url(#sg)" stroke-width="1.5" fill="url(#sg)" fill-opacity="0.1"/><circle cx="16" cy="16" r="3" fill="url(#sg)"/><defs><linearGradient id="sg"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>
+                    <span class="sidebar-title">NexusAI</span>
+                </div>
+                <button class="btn-icon" id="btn-new-chat" title="New Chat">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                </button>
+            </div>
+
+            <div class="sidebar-sessions" id="session-list">
+                <!-- Sessions loaded dynamically -->
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-info" id="user-info">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <span class="user-name" id="user-name">User</span>
+                </div>
+                <button class="btn-icon btn-logout" id="btn-logout" title="Sign Out">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar toggle -->
+        <button class="sidebar-toggle" id="sidebar-toggle">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+        </button>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <!-- Messages Container -->
+            <div class="chat-messages" id="chat-messages">
+                <!-- Welcome state -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-icon">
+                        <svg viewBox="0 0 64 64" fill="none"><path d="M32 6L56 20V44L32 58L8 44V20L32 6Z" stroke="url(#wg)" stroke-width="2" fill="url(#wg)" fill-opacity="0.08"/><path d="M32 18L46 26V38L32 46L18 38V26L32 18Z" stroke="url(#wg)" stroke-width="1.5" fill="url(#wg)" fill-opacity="0.12"/><circle cx="32" cy="32" r="5" fill="url(#wg)"/><defs><linearGradient id="wg" x1="8" y1="6" x2="56" y2="58"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>
+                    </div>
+                    <h2>How can I help you today?</h2>
+                    <p>Ask me anything about your GCP infrastructure</p>
+                    <div class="quick-prompts">
+                        <button class="quick-prompt" data-prompt="List all my running VMs">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+                            <span>List running VMs</span>
+                        </button>
+                        <button class="quick-prompt" data-prompt="Show my VPC networks">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/></svg>
+                            <span>Show VPC networks</span>
+                        </button>
+                        <button class="quick-prompt" data-prompt="What storage buckets do I have?">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+                            <span>Storage buckets</span>
+                        </button>
+                        <button class="quick-prompt" data-prompt="Give me a billing summary">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 1a1 1 0 100 2 2 2 0 002-2 1 1 0 00-1-1 1 1 0 00-1 1z" clip-rule="evenodd"/></svg>
+                            <span>Billing summary</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <div class="chat-input-container">
+                    <textarea id="chat-input" placeholder="Ask about your GCP infrastructure..." rows="1" maxlength="2000"></textarea>
+                    <button id="btn-send" class="btn-send" disabled title="Send message">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+                    </button>
+                </div>
+                <p class="input-hint">NexusAI can query your GCP project in real-time</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

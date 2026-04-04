@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 from app.db.models.user import User
 from app.schemas.auth import UserCreate, UserLogin
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd_context removed in favor of direct bcrypt
 
 SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-here")
 ALGORITHM = "HS256"
@@ -16,11 +16,11 @@ class AuthService:
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
     
     @staticmethod
     def get_password_hash(password: str) -> str:
-        return pwd_context.hash(password)
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     @staticmethod
     def get_user_by_email(db: Session, email: str) -> User:

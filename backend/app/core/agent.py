@@ -1,6 +1,6 @@
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Dict, Any
 import os
@@ -19,21 +19,21 @@ class ChatAgent:
     def __init__(self):
         # Initialize models
         self.router_model = ChatGroq(
-            model_name="llama3-70b-8192",
+            model_name="openai/gpt-oss-120b",
             temperature=0.1,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
         
         self.simple_model = ChatGroq(
-            model_name="llama3-70b-8192",
+            model_name="openai/gpt-oss-120b",
             temperature=0.7,
             groq_api_key=os.getenv("GROQ_API_KEY")
         )
         
-        self.gcp_model = ChatOpenAI(
-            model="gpt-4",
+        self.gcp_model = ChatGroq(
+            model_name="openai/gpt-oss-120b",
             temperature=0.1,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            groq_api_key=os.getenv("GROQ_API_KEY")
         )
         
         # Build the graph
