@@ -216,3 +216,4 @@ __pycache__/
 
 # OS
 .DS_Store
+vertex-ai.json
