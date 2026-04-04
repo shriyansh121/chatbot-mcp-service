@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel
 from app.db.session import SessionLocal
@@ -9,6 +10,7 @@ from app.services.session_service import SessionService
 from app.schemas.chat import ChatRequest, ChatResponse, SessionResponse, MessageResponse
 from app.dependencies.auth import get_current_user
 from app.db.models.user import User
+import json
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -24,13 +26,17 @@ chat_service = ChatService()
 class RenameRequest(BaseModel):
     title: str
 
-@router.post("/message", response_model=ChatResponse)
+@router.post("/message")
 async def send_message(
     request: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return await chat_service.process_message(db, current_user.id, request)
+    # Streaming response using the generator from ChatService
+    return StreamingResponse(
+        chat_service.process_message_stream(db, current_user.id, request),
+        media_type="text/event-stream"
+    )
 
 @router.get("/sessions", response_model=List[SessionResponse])
 async def get_sessions(
@@ -86,14 +92,3 @@ async def delete_session(
     if not success:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"message": "Session deleted successfully"}
-
-@router.post("/sessions/{session_id}/archive")
-async def archive_session(
-    session_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    success = SessionService.archive_session(db, session_id, current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return {"message": "Session archived successfully"}

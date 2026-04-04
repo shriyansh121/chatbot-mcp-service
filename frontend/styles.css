@@ -1169,3 +1169,24 @@ input, textarea { font-family: inherit; }
     .chat-messages { padding: 1rem; padding-top: 3.5rem; }
     .chat-input-area { padding: 0 1rem 1rem; }
 }
+.md-h3 {
+    margin: 1rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--blue-300);
+}
+.inline-thinking {
+    display: flex;
+    gap: 4px;
+    padding: 0.5rem 0;
+}
+.inline-thinking .thinking-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--blue-500);
+    border-radius: 50%;
+    animation: dotBounce 1.4s infinite ease-in-out both;
+}
+.inline-thinking .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
+.inline-thinking .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
+.inline-thinking .thinking-dot:nth-child(3) { animation-delay: 0s; }
