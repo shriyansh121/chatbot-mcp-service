@@ -5,7 +5,8 @@ alembic
 asyncpg 
 psycopg2-binary 
 python-dotenv
-pydantic_settings
+pydantic[email]
+pydantic-settings
 google-cloud-compute
 google-cloud-storage
 google-cloud-container
@@ -18,12 +19,9 @@ google-cloud-resource-manager
 langchain
 langchain-groq
 langchain-community
-pydantic
-pydantic-settings
+langchain-core
 pyyaml
 mcp
-python-dotenv
 passlib[bcrypt]
 python-jose[cryptography]
 langgraph
-langchain-core
