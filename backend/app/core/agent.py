@@ -188,14 +188,14 @@ class ChatAgent:
         self.tools = {
             "list_vms": vm.list_vms,
             "get_vm_details": vm.get_vm_details,
-            "list_networks": vpc.list_vpc_networks,
-            "list_buckets": storage.list_storage_buckets,
-            "list_clusters": gke.list_gke_clusters,
-            "list_functions": functions.list_cloud_functions,
+            "list_networks": vpc.list_networks,
+            "list_buckets": storage.list_buckets,
+            "list_clusters": gke.list_clusters,
+            "list_functions": functions.list_functions,
             "list_billing_accounts": billing.list_billing_accounts,
-            "list_sql_instances": cloudsql.list_sql_instances,
+            "list_sql_instances": cloudsql.list_instances,
             "list_load_balancers": loadbalancer.list_load_balancers,
-            "list_dns_zones": dns.list_dns_zones
+            "list_dns_zones": dns.list_zones
         }
         
         # Simple manual tool binding

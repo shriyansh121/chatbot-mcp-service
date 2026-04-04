@@ -23,7 +23,13 @@ from app.lib_helper.config import settings
 async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle: preload caches on startup."""
     # Startup: preload quick action caches for fast responses
-    await preload_quick_action_cache(project_id=settings.PROJECT_ID)
+    # Wrapped in try-except to prevent app crash if GCP is unavailable
+    try:
+        if settings.PROJECT_ID:
+            await preload_quick_action_cache(project_id=settings.PROJECT_ID)
+    except Exception as e:
+        import logging
+        logging.warning(f"Cache preload failed (non-fatal): {e}")
     yield
     # Shutdown: cleanup if needed
     pass

@@ -28,6 +28,19 @@ class Settings(BaseSettings):
     
     # GCP Settings
     PROJECT_ID: str = os.getenv("PROJECT_ID")
+    
+    # Billing Settings (optional)
+    BILLING_ID: str = os.getenv("BILLING_ID", "")
+
+    @property
+    def project_id(self) -> str:
+        """Lowercase alias for PROJECT_ID (used by GCP modules)."""
+        return self.PROJECT_ID
+    
+    @property
+    def billing_id(self) -> str:
+        """Lowercase alias for BILLING_ID."""
+        return self.BILLING_ID
 
     class Config:
         case_sensitive = True
