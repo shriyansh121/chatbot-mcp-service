@@ -1,6 +1,6 @@
 from google.cloud import compute_v1
-from app.lib.config import settings
-from app.lib.logger import setup_logger
+from app.lib_helper.config import settings
+from app.lib_helper.logger import setup_logger
 
 logger = setup_logger("gcp.loadbalancer")
 
