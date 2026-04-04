@@ -4,23 +4,24 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict, Dict, Any, List, AsyncGenerator
 import os
 import json
+import logging
 from app.gcp import vm, vpc, storage, gke, functions, billing, cloudsql, loadbalancer, dns
 
-# ── System Prompt (concise = fewer hallucinations) ──────────────
-SYSTEM_PROMPT = """You are NexusAI, a GCP infrastructure & CS assistant.
+logger = logging.getLogger(__name__)
+
+# ── System Prompt (NO mention of "tools" — prevents Groq tool_call error) ───
+SYSTEM_PROMPT = """You are NexusAI, a GCP infrastructure and computer science assistant.
 
 RULES:
-1. For GCP resource queries ("list VMs", "show buckets"), call the matching tool.
+1. GCP resource data will be provided to you as JSON. Format it into clean markdown tables.
 2. For CS/coding/DevOps questions, answer concisely (max 6 lines).
-3. Use markdown tables for resource listings. Keep text brief.
-4. Refuse off-topic queries (medical, politics, NSFW) politely.
-5. NEVER invent resource names, IPs, or data. Only report what tools return.
-6. If a tool returns empty, say "No resources found."
-
-AVAILABLE TOOLS: list_vms, get_vm_details, list_networks, list_buckets, list_clusters, list_functions, list_billing_accounts, list_sql_instances, list_load_balancers, list_dns_zones"""
+3. Refuse off-topic queries (medical, politics, NSFW) politely.
+4. NEVER invent resource names, IPs, or data.
+5. If data is empty, say "No resources found in your project."
+6. Keep responses brief and structured."""
 
 
-# ── Tool registry (maps tool name → actual Python function) ─────
+# ── Tool registry ───────────────────────────────────────────────
 TOOL_REGISTRY = {
     "list_vms": vm.list_vms,
     "get_vm_details": vm.get_vm_details,
@@ -34,7 +35,7 @@ TOOL_REGISTRY = {
     "list_dns_zones": dns.list_zones,
 }
 
-# ── Simple keyword → tool mapper (no extra LLM call needed) ────
+# ── Keyword → tool mapper (no LLM routing needed) ──────────────
 TOOL_KEYWORDS = {
     "list_vms":              ["vm", "vms", "virtual machine", "instances", "running vms", "compute"],
     "list_networks":         ["vpc", "network", "networks", "subnets"],
@@ -49,7 +50,7 @@ TOOL_KEYWORDS = {
 
 
 def detect_tool(query: str) -> str | None:
-    """Match user query to a tool using keyword detection. Returns tool name or None."""
+    """Match user query to a tool using keyword detection."""
     q = query.lower()
     for tool_name, keywords in TOOL_KEYWORDS.items():
         if any(kw in q for kw in keywords):
@@ -79,10 +80,10 @@ class ChatAgent:
         return workflow.compile()
 
     async def _process(self, state: AgentState) -> AgentState:
-        """Single-node processor: detect tool → call it → inject data → LLM."""
-        messages = state["messages"]
+        """Single node: detect tool → call it → inject data → let LLM format."""
+        messages = list(state["messages"])
 
-        # Extract the latest user message
+        # Find latest user message
         user_msg = ""
         for m in reversed(messages):
             if isinstance(m, HumanMessage):
@@ -93,28 +94,30 @@ class ChatAgent:
         tool_name = detect_tool(user_msg)
         if tool_name and tool_name in TOOL_REGISTRY:
             try:
+                logger.info(f"Calling GCP tool: {tool_name}")
                 tool_fn = TOOL_REGISTRY[tool_name]
-                tool_result = tool_fn()  # Call the actual GCP function
+                tool_result = tool_fn()
                 tool_data = json.dumps(tool_result, indent=2, default=str)
+                logger.info(f"Tool {tool_name} returned {len(tool_result) if isinstance(tool_result, list) else 'dict'} results")
 
-                # Inject tool result as a system message so the LLM formats it
-                inject_msg = SystemMessage(
-                    content=f"TOOL RESULT from `{tool_name}`:\n```json\n{tool_data}\n```\n\nFormat this data nicely for the user using a markdown table. Be concise."
-                )
-                messages.append(inject_msg)
-            except Exception as e:
+                # Inject result as context for the LLM to format
                 messages.append(SystemMessage(
-                    content=f"TOOL ERROR: `{tool_name}` failed with: {str(e)}. Tell the user."
+                    content=f"Here is the REAL data from your GCP project for '{tool_name}':\n```json\n{tool_data}\n```\nFormat this data as a clean markdown table for the user. Add a brief one-line summary."
+                ))
+            except Exception as e:
+                logger.error(f"Tool {tool_name} failed: {e}")
+                messages.append(SystemMessage(
+                    content=f"The GCP query '{tool_name}' failed with error: {str(e)}. Tell the user about this error."
                 ))
 
         res = await self.llm.ainvoke(messages)
-        state["messages"].append(res)
+        state["messages"] = messages + [res]
         return state
 
     async def generate_title(self, msg: str) -> str:
         """Generate a short title for a chat session."""
         prompt = [HumanMessage(
-            content=f"Generate a 3-5 word title for this message. Return ONLY the title, nothing else:\n\n{msg[:150]}"
+            content=f"Generate a 3-5 word title summarizing this message. Return ONLY the title:\n{msg[:150]}"
         )]
         res = await self.llm.ainvoke(prompt)
         title = res.content.strip().strip('"').strip("'").strip(".")
@@ -127,8 +130,7 @@ class ChatAgent:
         user_id: str,
         history: List[Dict[str, str]] = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream tokens from the agent via SSE."""
-        # Build message chain: system + history + current
+        """Stream tokens via SSE."""
         msgs = [SystemMessage(content=SYSTEM_PROMPT)]
         for h in (history or []):
             if h["role"] == "user":
@@ -139,14 +141,17 @@ class ChatAgent:
 
         state = {"messages": msgs}
 
-        async for event in self.graph.astream_events(state, version="v2"):
-            kind = event.get("event", "")
-
-            if kind == "on_chat_model_stream":
-                chunk = event.get("data", {}).get("chunk")
-                if chunk and chunk.content:
-                    payload = json.dumps({"type": "token", "content": chunk.content})
-                    yield f"data: {payload}\n\n"
-
-            elif kind == "on_chain_end" and event.get("name") == "LangGraph":
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        try:
+            async for event in self.graph.astream_events(state, version="v2"):
+                kind = event.get("event", "")
+                if kind == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and chunk.content:
+                        payload = json.dumps({"type": "token", "content": chunk.content})
+                        yield f"data: {payload}\n\n"
+                elif kind == "on_chain_end" and event.get("name") == "LangGraph":
+                    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as e:
+            logger.error(f"Stream error: {e}")
+            yield f"data: {json.dumps({'type': 'token', 'content': f'⚠️ Error: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
