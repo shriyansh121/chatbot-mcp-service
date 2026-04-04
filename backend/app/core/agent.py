@@ -1,5 +1,4 @@
 from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Dict, Any, List
